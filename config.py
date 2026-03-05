@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     LLM_MODEL: str = "qwen3.5:9b"
     TOP_K: int = 3
     SOURCE_MAX_WORDS: int = 300  # cap source text per chunk in prompt
-    LLM_NUM_CTX: int = 4096  # Ollama context window — 4096 balances quality vs VRAM pressure
+    LLM_NUM_CTX: int = 8192  # Ollama context window — fits fine with 4b model, no VRAM pressure
     API_KEY: str  # Required — no default, must be set in .env
 
     class Config:
