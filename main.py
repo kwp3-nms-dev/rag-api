@@ -88,8 +88,8 @@ async def llm_generate(prompt: str) -> str:
     try:
         resp = await client.post(
             f"{settings.OLLAMA_URL}/api/generate",
-            json={"model": settings.LLM_MODEL, "prompt": prompt, "stream": False},
-            timeout=120,
+            json={"model": settings.LLM_MODEL, "prompt": prompt, "stream": False, "options": {"num_ctx": settings.LLM_NUM_CTX}},
+            timeout=300,
         )
         resp.raise_for_status()
         return resp.json()["response"]

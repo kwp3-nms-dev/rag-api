@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     EMBED_MODEL: str = "qwen3-embedding:4b"
     LLM_MODEL: str = "qwen3.5:9b"
     TOP_K: int = 5
+    LLM_NUM_CTX: int = 8192  # Ollama context window — default 2048 is too small for RAG
     API_KEY: str  # Required — no default, must be set in .env
 
     class Config:
