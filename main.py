@@ -16,6 +16,9 @@ logging.basicConfig(
 )
 log = logging.getLogger("rag-api")
 
+# Runtime allowlist — starts from config, grows via /admin/collections/register
+_allowed_collections: set = set(ALLOWED_COLLECTIONS)
+
 # --- Auth ---
 
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=True)
@@ -56,10 +59,10 @@ class QueryRequest(BaseModel):
 # --- Validation ---
 
 def validate_collection(collection: str) -> None:
-    if collection not in ALLOWED_COLLECTIONS:
+    if collection not in _allowed_collections:
         raise HTTPException(
             status_code=400,
-            detail=f"Unknown collection '{collection}'. Allowed: {sorted(ALLOWED_COLLECTIONS)}",
+            detail=f"Unknown collection '{collection}'. Allowed: {sorted(_allowed_collections)}",
         )
 
 
@@ -126,7 +129,46 @@ async def qdrant_upsert(collection: str, point_id: str, vector: List[float], pay
         raise HTTPException(status_code=502, detail="Vector store unavailable")
 
 
+# --- Request models ---
+
+class RegisterRequest(BaseModel):
+    name: str
+    vector_size: int = 2560
+
+
 # --- Endpoints ---
+
+@app.post("/admin/collections/register", dependencies=[Security(require_api_key)])
+async def register_collection(req: RegisterRequest):
+    name = req.name.strip()
+    if not name or not name.replace("_", "").isalnum():
+        raise HTTPException(status_code=400, detail="Invalid collection name. Use alphanumeric + underscores only.")
+
+    client: httpx.AsyncClient = app.state.client
+
+    # Check if already exists in Qdrant
+    r = await client.get(f"{settings.QDRANT_URL}/collections/{name}", timeout=5)
+    if r.status_code == 200:
+        _allowed_collections.add(name)
+        log.info("Collection '%s' already exists — added to allowlist", name)
+        return {"collection": name, "status": "already_exists"}
+
+    # Create in Qdrant
+    try:
+        r = await client.put(
+            f"{settings.QDRANT_URL}/collections/{name}",
+            json={"vectors": {"size": req.vector_size, "distance": "Cosine"}},
+            timeout=10,
+        )
+        r.raise_for_status()
+    except Exception as e:
+        log.error("Failed to create Qdrant collection '%s': %s", name, e)
+        raise HTTPException(status_code=502, detail="Failed to create collection in Qdrant")
+
+    _allowed_collections.add(name)
+    log.info("Registered new collection '%s' (vector_size=%d)", name, req.vector_size)
+    return {"collection": name, "status": "created"}
+
 
 @app.get("/health")
 async def health():
