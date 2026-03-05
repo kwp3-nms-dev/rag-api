@@ -73,7 +73,7 @@ async def embed_text(text: str) -> List[float]:
     try:
         resp = await client.post(
             f"{settings.OLLAMA_URL}/api/embeddings",
-            json={"model": settings.EMBED_MODEL, "prompt": text},
+            json={"model": settings.EMBED_MODEL, "prompt": text, "keep_alive": 0},
             timeout=30,
         )
         resp.raise_for_status()
@@ -88,7 +88,7 @@ async def llm_generate(prompt: str) -> str:
     try:
         resp = await client.post(
             f"{settings.OLLAMA_URL}/api/generate",
-            json={"model": settings.LLM_MODEL, "prompt": prompt, "stream": False, "options": {"num_ctx": settings.LLM_NUM_CTX}},
+            json={"model": settings.LLM_MODEL, "prompt": prompt, "stream": False, "keep_alive": -1, "options": {"num_ctx": settings.LLM_NUM_CTX}},
             timeout=300,
         )
         resp.raise_for_status()
@@ -208,7 +208,14 @@ async def query(req: QueryRequest):
     embedding = await embed_text(req.query)
     hits = await qdrant_search(req.collection, embedding, top_k)
 
-    sources = [h["payload"].get("text", "") for h in hits if h.get("payload", {}).get("text")]
+    def _trim(text: str, max_words: int) -> str:
+        words = text.split()
+        return " ".join(words[:max_words]) + ("…" if len(words) > max_words else "")
+
+    sources = [
+        _trim(h["payload"].get("text", ""), settings.SOURCE_MAX_WORDS)
+        for h in hits if h.get("payload", {}).get("text")
+    ]
 
     if not sources:
         log.info("Query on %s returned no sources: %r", req.collection, req.query)

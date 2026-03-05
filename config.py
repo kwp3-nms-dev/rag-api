@@ -15,8 +15,9 @@ class Settings(BaseSettings):
     OLLAMA_URL: str = "http://localhost:11434"
     EMBED_MODEL: str = "qwen3-embedding:4b"
     LLM_MODEL: str = "qwen3.5:9b"
-    TOP_K: int = 5
-    LLM_NUM_CTX: int = 8192  # Ollama context window — default 2048 is too small for RAG
+    TOP_K: int = 3
+    SOURCE_MAX_WORDS: int = 300  # cap source text per chunk in prompt
+    LLM_NUM_CTX: int = 4096  # Ollama context window — 4096 balances quality vs VRAM pressure
     API_KEY: str  # Required — no default, must be set in .env
 
     class Config:
