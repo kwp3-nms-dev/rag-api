@@ -6,6 +6,7 @@ ALLOWED_COLLECTIONS = {
     "accounting_software_kb",
     "it_infrastructure_kb",
     "sop_docs",
+    "microsoft_admin_kb",
 }
 
 
